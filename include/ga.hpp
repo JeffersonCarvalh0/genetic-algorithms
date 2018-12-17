@@ -5,21 +5,21 @@
 
 using namespace std;
 
-int c, sizes[2005], values[2005];
-
 class GA {
 public:
-    int pop_size, ch_size, max_gen, mutation_rate;
+    int pop_size, ch_size, max_gen, mutation_rate, c;
     vector<vector<bool>> population;
-    vector<int> fitnesses;
+    vector<int> &weights, &values, fitnesses;
 
     random_device rd;
     default_random_engine generator;
     uniform_int_distribution<int> random_value;
     uniform_int_distribution<int> random_gene;
 
-    GA(int pop_size, int ch_size, int max_gen = 500, int mutation_rate = 1):
-    pop_size(pop_size), ch_size(ch_size), max_gen(max_gen), mutation_rate(mutation_rate) {
+    GA(vector<int> &weights, vector<int> &values, int c, int pop_size = 25,
+    int max_gen = 500, int mutation_rate = 1): weights(weights), values(values),
+    c(c), pop_size(pop_size), max_gen(max_gen), mutation_rate(mutation_rate) {
+        ch_size = weights.size();
         generator = default_random_engine(rd());
         random_value = uniform_int_distribution<int>(0, 1);
         random_gene = uniform_int_distribution<int>(0, ch_size - 1);
@@ -32,22 +32,23 @@ public:
     }
 
     int fitness(int ch) {
-        int total_value, total_size;
+        int total_value, total_weight;
 
         do {
-            total_value = total_size = 0;
+            total_value = total_weight = 0;
             for (int i = 0; i < ch_size; ++i) {
                 total_value += values[i] * population[ch][i];
-                total_size += sizes[i] * population[ch][i];
+                total_weight += weights[i] * population[ch][i];
             }
 
-            if (total_size > c) {
+            if (total_weight > c) {
                 int gene;
                 do gene = random_gene(generator); while (!population[ch][gene]);
                 population[ch][gene] = 0;
+                total_weight -= weights[gene];
             }
 
-        } while (total_size > c);
+        } while (total_weight > c);
 
         return total_value;
     }
@@ -102,22 +103,9 @@ public:
         multimap<int, int> best;
         for (int i = 0; i < pop_size; ++i) best.insert({ fitnesses[i], i });
 
-        cout << "ordered best chromossomes\n";
-        for (auto it = best.begin(); it != best.end(); ++it) {
-            for (int i = 0; i < ch_size; ++i) cout << population[it->second][i] << ' ';
-            cout << ", fitness " << fitnesses[it->second] << '\n';
-        }
-        cout << '\n';
-
-        cout << "\nsurvivors_qtd: " << survivors_qtd << '\n';
-
         int i = 0;
-        for (auto it = best.rbegin(); it != best.rend(), i < survivors_qtd; ++it) {
-            cout << "selected survivor: ";
-            for (int j = 0; j < ch_size; ++j) cout << population[it->second][j] << ' ';
-            cout << '\n';
-            new_population[i] = population[it->second]; ++i;
-        }
+        for (auto it = best.rbegin(); it != best.rend(), i < survivors_qtd; ++it)
+            new_population[i] = population[it->second], ++i;
 
         // Generate the rest of the new population through crossover
         vector<bool> c1(ch_size), c2(ch_size);
@@ -131,9 +119,6 @@ public:
 
     void start() {
         while (max_gen--) {
-            cout << "==========================================================\n";
-            cout << "generation " << max_gen << "\n\n";
-
             // Calculate the fitness of all chromossomes
             for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(i);
 
@@ -141,43 +126,31 @@ public:
             int parent1, parent2;
             select(parent1, parent2);
 
-            cout << "parent1: ";
-            for (int i = 0; i < ch_size; ++i) cout << population[parent1][i];
-            cout << '\n';
-
-            cout << "parent2: ";
-            for (int i = 0; i < ch_size; ++i) cout << population[parent2][i];
-            cout << '\n';
-
             // Breed and generate a new population
             breed(parent1, parent2);
 
             for (int i = 0; i < pop_size; ++i) fitnesses[i] = fitness(i);
-
-            cout << '\n';
-            for (int i = 0; i < pop_size; ++i) {
-                cout << "solution " << i << '\n';
-                for (int j = 0; j < ch_size; ++j) cout << population[i][j] << ' ';
-                cout << "\ntotal value: " << fitnesses[i] << "\n\n";
-            }
-            cout << "==========================================================\n";
         }
+
+        int best_solution = 0;
+        cout << "\nResults:\n";
+        for (int i = 0; i < pop_size; ++i) {
+
+            if (fitnessess[i] > fitnessess[best_solution]) best_solution = i;
+
+            int total_weight = 0;
+            cout << "solution " << i + 1 << '\n';
+            for (int j = 0; j < ch_size; ++j) {
+                cout << population[i][j] << ' ';
+                total_weight += weights[j] * population[i][j];
+            }
+            cout << "\ntotal value: " << fitnesses[i] << "\n";
+            cout << "total weight: " << total_weight << "\n\n";
+        }
+
+        cout << "Best solution found:\n";
+        for (int j = 0; i < ch_size; ++j)
+            cout << population[best_solution][j] << ' ';
+        cout << "\ntotal value: " << fitnesses[i] << "\n";
     }
 };
-
-int main() {
-    ios_base::sync_with_stdio(0); cin.tie(0); cout.tie(0);
-
-    int n, pop_size, max_gen, mutation_rate;
-
-    cin >> pop_size >> max_gen >> mutation_rate;
-
-    cin >> c >> n;
-
-    for (int i = 0; i < n; ++i) cin >> sizes[i] >> values[i];
-
-    GA ga(pop_size, n, max_gen, mutation_rate);
-    ga.start();
-
-    return 0;
-}

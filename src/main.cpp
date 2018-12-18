@@ -1,4 +1,5 @@
-# include "ga.hpp"
+# include "ga.h"
+# include <iostream>
 # include <fstream>
 # include <vector>
 
